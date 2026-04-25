@@ -131,6 +131,9 @@ textarea { min-height:90px; resize:vertical; }
           <option value="본인 매장 호출">본인 매장 호출</option>
           <option value="본인이 방문">본인이 방문</option>
         </select>
+        <label>방문 점포</label>
+        <select id="vocStore"><option value="">본인이 방문하는 경우 선택</option></select>
+        <p class="small-text">본인 매장 호출은 리드 소속 점포로 자동 등록됩니다.</p>
         <label>교육 시작일 📅</label><input type="date" id="vocStartDate" />
         <label>교육 종료일 📅</label><input type="date" id="vocEndDate" />
         <label>사유</label><textarea id="vocReason" placeholder="요청 사유"></textarea>
@@ -194,8 +197,8 @@ textarea { min-height:90px; resize:vertical; }
       <label>일정 구분</label>
       <select id="scheduleType">
         <option value="휴무">휴무</option>
-        <option value="교육">교육</option>
-        <option value="점포 방문">점포 방문</option>
+        <option value="리드 이동 교육">리드 이동 교육</option>
+        <option value="리드 점포 교육">리드 점포 교육</option>
         <option value="기타">기타</option>
       </select>
 
@@ -248,7 +251,7 @@ function fillSelect(id, list) {
 function init() {
   renderLeadCards();
 
-  ["rotationStore","rotationRequestStore","leadStore","scheduleStore"].forEach(id => fillSelect(id, stores));
+  ["rotationStore","rotationRequestStore","leadStore","scheduleStore","vocStore"].forEach(id => fillSelect(id, stores));
   ["leadPerson","vocLead","leadCheckName"].forEach(id => fillSelect(id, leads.map(x => x.name)));
 
   const today = new Date().toISOString().slice(0,10);
@@ -363,6 +366,7 @@ function sendVocData() {
     members: document.getElementById("vocMembers").value.trim(),
     products: getCheckedValues("vocProductCheck"),
     visitType: document.getElementById("vocType").value,
+    store: document.getElementById("vocStore").value,
     start: document.getElementById("vocStartDate").value,
     end: document.getElementById("vocEndDate").value,
     reason: document.getElementById("vocReason").value.trim()
@@ -373,11 +377,16 @@ function sendVocData() {
     return;
   }
 
+  if (data.visitType === "본인이 방문" && !data.store) {
+    document.getElementById("vocResult").innerText = "본인이 방문하는 경우 방문 점포를 선택해주세요.";
+    return;
+  }
+
   document.getElementById("vocResult").innerText = "전송 중...";
   postToScript(data)
     .then(() => {
       document.getElementById("vocResult").innerText = "리드 전용 요청 완료 👍";
-      ["vocLead","vocMembers","vocType","vocStartDate","vocEndDate","vocReason"].forEach(id => document.getElementById(id).value = "");
+      ["vocLead","vocMembers","vocType","vocStore","vocStartDate","vocEndDate","vocReason"].forEach(id => document.getElementById(id).value = "");
       document.querySelectorAll(".vocProductCheck").forEach(check => check.checked = false);
     })
     .catch(() => document.getElementById("vocResult").innerText = "전송 실패 ❌");
@@ -545,16 +554,13 @@ function handleSchedule(data) {
 
   box.innerHTML = list.map(item => {
     const start = item.start || item.date || "";
-    const end = item.end && item.end !== start ? ` ~ ${item.end}` : "";
-    const store = item.store ? `<p><b>점포:</b> ${item.store}</p>` : "";
-    const method = item.method ? `<p><b>등록:</b> ${item.method}</p>` : "";
+    const end = item.end || start;
+    const store = item.store ? `<p><b>점포:</b> ${item.store}</p>` : `<p><b>점포:</b> -</p>`;
 
     return `
       <div class="schedule-item">
-        <p><span class="badge">${item.type || "일정"}</span> ${start}${end}</p>
+        <p><span class="badge">${item.type || "기타"}</span> ${start} ~ ${end}</p>
         ${store}
-        <p>${item.memo || ""}</p>
-        ${method}
       </div>
     `;
   }).join("");
