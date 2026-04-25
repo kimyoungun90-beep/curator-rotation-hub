@@ -45,10 +45,30 @@ textarea { min-height:90px; resize:vertical; }
 .close-btn { border:none; background:#eee; border-radius:8px; padding:8px 10px; font-weight:bold; }
 .schedule-item { border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin:8px 0; background:#fafafa; }
 .badge { display:inline-block; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:bold; background:#eef2ff; color:#1428a0; margin-right:5px; }
+#splash {
+  position: fixed;
+  inset: 0;
+  background: #1428a0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#splash img {
+  width: 130px;
+  height: 130px;
+  border-radius: 28px;
+}
 </style>
 </head>
 
 <body>
+
+<div id="splash">
+  <img src="./icon-192.png" />
+</div>
+
 <header id="appHeader">큐레이터 순환근무 신청앱</header>
 
 <div class="container">
@@ -224,20 +244,20 @@ textarea { min-height:90px; resize:vertical; }
 
 <script>
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzkoeNF3vS9q35OB25GTqDURJyb9ghsfDhAsCMOrobQrqCwLeaSiBMCk9e1fG_Adw6QGg/exec";
-const ADMIN_PASSWORD = "10042";
-const VOC_PASSWORD = "82820";
+const ADMIN_PASSWORD = "110077";
+const VOC_PASSWORD = "112233";
 
 const stores = ["양평","대구","대전","양재","일산","부산","울산","광명","천안","의정부","상봉","공세","송도","세종","혁신","하남","김해","고척","청라","평택"];
 
 const leads = [
-  { name:"강문흠", store:"혁신점", phone:"010-0000-0000" },
+  { name:"강문흠", store:"혁신점", phone:"010-4128-7269" },
   { name:"이준호", store:"공세점", phone:"010-0000-0000" },
-  { name:"김동규", store:"고척점", phone:"010-0000-0000" },
+  { name:"김동규", store:"고척점", phone:"010-2802-1933" },
   { name:"우예빈", store:"양재점", phone:"010-0000-0000" },
-  { name:"최명석", store:"대전점", phone:"010-0000-0000" },
+  { name:"최명석", store:"대전점", phone:"010-5437-3572" },
   { name:"정성원", store:"광명점", phone:"010-0000-0000" },
   { name:"주혜원", store:"송도점", phone:"010-0000-0000" },
-  { name:"김민경", store:"부산점", phone:"010-0000-0000" }
+  { name:"김민경", store:"부산점", phone:"010-3498-0329" }
 ];
 
 let currentScheduleLead = "";
@@ -845,6 +865,12 @@ if ("serviceWorker" in navigator) {
 }
 
 init();
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    const splash = document.getElementById("splash");
+    if (splash) splash.style.display = "none";
+  }, 1000); // 1초
+});
 </script>
 </body>
 </html>
