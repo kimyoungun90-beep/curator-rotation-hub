@@ -1,4 +1,4 @@
-const CACHE_NAME = "curator-hub-v13";
+const CACHE_NAME = "curator-hub-v14";
 
 const ASSETS = [
   "./",
