@@ -241,6 +241,7 @@ const leads = [
 ];
 
 let currentScheduleLead = "";
+let currentScheduleList = [];
 
 function fillSelect(id, list) {
   const select = document.getElementById(id);
@@ -259,6 +260,12 @@ function init() {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
+
+  const scheduleType = document.getElementById("scheduleType");
+  if (scheduleType) {
+    scheduleType.addEventListener("change", handleScheduleTypeChange);
+    handleScheduleTypeChange();
+  }
 }
 
 function renderLeadCards() {
@@ -360,12 +367,14 @@ function checkVocPassword() {
 }
 
 function sendVocData() {
+  const visitType = document.getElementById("vocType").value;
+
   const data = {
     type: "voc",
     lead: document.getElementById("vocLead").value,
     members: document.getElementById("vocMembers").value.trim(),
     products: getCheckedValues("vocProductCheck"),
-    visitType: document.getElementById("vocType").value,
+    visitType: visitType,
     store: document.getElementById("vocStore").value,
     start: document.getElementById("vocStartDate").value,
     end: document.getElementById("vocEndDate").value,
@@ -433,22 +442,47 @@ function renderAdminList(elementId, list) {
     box.innerHTML = "<p>대기 중인 신청 내역이 없습니다.</p>";
     return;
   }
+
   box.innerHTML = "";
 
   list.slice().reverse().forEach(item => {
     let html = "";
 
     if (item.sheetName === "순환근무신청") {
-      html = `<p><b>이름:</b> ${item.name || ""}</p><p><b>본인 점포:</b> ${item.store || ""}</p><p><b>요청점:</b> ${item.target || ""}</p><p><b>일자:</b> ${formatDateOnly(item.date)}</p><p><b>사유:</b> ${item.reason || ""}</p>`;
+      html = `
+        <p><b>이름:</b> ${item.name || ""}</p>
+        <p><b>본인 점포:</b> ${item.store || ""}</p>
+        <p><b>요청점:</b> ${item.target || ""}</p>
+        <p><b>일자:</b> ${formatDateOnly(item.date)}</p>
+        <p><b>사유:</b> ${item.reason || ""}</p>
+      `;
     }
+
     if (item.sheetName === "리드방문요청") {
-      html = `<p><b>이름:</b> ${item.name || ""}</p><p><b>본인 점포:</b> ${item.store || ""}</p><p><b>요청 리드:</b> ${item.target || ""}</p><p><b>품목:</b> ${item.products || ""}</p><p><b>일자:</b> ${formatDateOnly(item.date)}</p><p><b>사유:</b> ${item.reason || ""}</p>`;
+      html = `
+        <p><b>이름:</b> ${item.name || ""}</p>
+        <p><b>본인 점포:</b> ${item.store || ""}</p>
+        <p><b>요청 리드:</b> ${item.target || ""}</p>
+        <p><b>품목:</b> ${item.products || ""}</p>
+        <p><b>일자:</b> ${formatDateOnly(item.date)}</p>
+        <p><b>사유:</b> ${item.reason || ""}</p>
+      `;
     }
+
     if (item.sheetName === "리드전용요청") {
-      html = `<p><b>리드:</b> ${item.lead || ""}</p><p><b>교육 대상자:</b> ${item.members || ""}</p><p><b>품목:</b> ${item.products || ""}</p><p><b>요청 구분:</b> ${item.visitType || ""}</p><p><b>교육 기간:</b> ${formatDateOnly(item.start)} ~ ${formatDateOnly(item.end)}</p><p><b>사유:</b> ${item.reason || ""}</p>`;
+      html = `
+        <p><b>리드:</b> ${item.lead || ""}</p>
+        <p><b>교육 대상자:</b> ${item.members || ""}</p>
+        <p><b>품목:</b> ${item.products || ""}</p>
+        <p><b>요청 구분:</b> ${item.visitType || ""}</p>
+        <p><b>방문 점포:</b> ${item.store || "-"}</p>
+        <p><b>교육 기간:</b> ${formatDateOnly(item.start)} ~ ${formatDateOnly(item.end)}</p>
+        <p><b>사유:</b> ${item.reason || ""}</p>
+      `;
     }
 
     const payload = encodeURIComponent(JSON.stringify(item));
+
     box.innerHTML += `
       <div class="card">
         ${html}
@@ -476,46 +510,89 @@ function updateStatus(event, encodedItem, status) {
 function loadMyStatus() {
   const name = document.getElementById("myName").value.trim();
   const password = document.getElementById("myPw").value.trim();
+
   if (!name || !password) {
     document.getElementById("myStatusMsg").innerText = "이름과 비밀번호를 입력해주세요.";
     return;
   }
+
   document.getElementById("myStatusMsg").innerText = "조회 중...";
   loadJsonp("myStatus", "handleMyStatus", { name, password });
 }
 
 function handleMyStatus(data) {
   document.getElementById("myStatusMsg").innerText = "";
+
   const box = document.getElementById("myStatusResult");
+
   if (!data.success) {
     box.innerHTML = `<div class="card"><p>${data.message}</p></div>`;
     return;
   }
+
   const list = data.items || [];
+
   if (list.length === 0) {
     box.innerHTML = `<div class="card"><p>조회된 신청 내역이 없습니다.</p></div>`;
     return;
   }
+
   box.innerHTML = "";
+
   list.slice().reverse().forEach(item => {
-    box.innerHTML += `<div class="card"><p><b>유형:</b> ${item.sheetName || ""}</p><p><b>점포/대상:</b> ${item.target || item.store || item.lead || ""}</p><p><b>일자:</b> ${formatDateOnly(item.date || item.start)}</p><p><b>사유:</b> ${item.reason || ""}</p><p><b>상태:</b> <span class="${statusClass(item.status)}">${displayStatus(item.status)}</span></p></div>`;
+    const payload = encodeURIComponent(JSON.stringify(item));
+    const canCancel = item.status === "대기";
+
+    box.innerHTML += `
+      <div class="card">
+        <p><b>유형:</b> ${item.sheetName || ""}</p>
+        <p><b>점포/대상:</b> ${item.target || item.store || item.lead || ""}</p>
+        <p><b>일자:</b> ${formatDateOnly(item.date || item.start)}</p>
+        <p><b>사유:</b> ${item.reason || ""}</p>
+        <p><b>상태:</b> <span class="${statusClass(item.status)}">${displayStatus(item.status)}</span></p>
+        ${canCancel ? `<button class="reject-btn" onclick="cancelMyRequest(event, '${payload}')">신청 취소</button>` : ""}
+      </div>
+    `;
+  });
+}
+
+function cancelMyRequest(event, encodedItem) {
+  const item = JSON.parse(decodeURIComponent(encodedItem));
+
+  if (!confirm("승인 전 신청을 취소할까요?")) return;
+
+  const card = event.target.closest(".card");
+  if (card) card.remove();
+
+  postToScript({
+    action: "cancelRequest",
+    sheetName: item.sheetName,
+    row: item.row,
+    password: item.password
+  }).then(() => {
+    document.getElementById("myStatusMsg").innerText = "신청 취소 완료 👍";
+    setTimeout(loadMyStatus, 500);
   });
 }
 
 function loadLeadPrivateData() {
   const lead = document.getElementById("leadCheckName").value;
   const password = document.getElementById("leadCheckPw").value.trim();
+
   if (!lead || !password) {
     document.getElementById("leadPrivateMsg").innerText = "리드 이름과 비밀번호를 입력해주세요.";
     return;
   }
+
   document.getElementById("leadPrivateMsg").innerText = "조회 중...";
   loadJsonp("leadStatus", "handleLeadPrivateData", { lead, password });
 }
 
 function handleLeadPrivateData(data) {
   document.getElementById("leadPrivateMsg").innerText = "";
+
   const box = document.getElementById("leadPrivateResult");
+
   if (!data.success) {
     box.innerHTML = `<div class="card"><p>${data.message}</p></div>`;
     return;
@@ -523,26 +600,60 @@ function handleLeadPrivateData(data) {
 
   const leadRequests = data.leadRequests || [];
   const vocRequests = data.vocRequests || [];
+
   let html = `<div class="card"><h3>내게 들어온 리드 방문 요청</h3>`;
-  html += leadRequests.length ? leadRequests.slice().reverse().map(item => `<div class="card"><p><b>신청자:</b> ${item.name || ""}</p><p><b>점포:</b> ${item.store || ""}</p><p><b>품목:</b> ${item.products || ""}</p><p><b>일자:</b> ${formatDateOnly(item.date)}</p><p><b>사유:</b> ${item.reason || ""}</p><p><b>상태:</b> <span class="${statusClass(item.status)}">${displayStatus(item.status)}</span></p></div>`).join("") : `<p>조회된 내역이 없습니다.</p>`;
+
+  html += leadRequests.length
+    ? leadRequests.slice().reverse().map(item => `
+      <div class="card">
+        <p><b>신청자:</b> ${item.name || ""}</p>
+        <p><b>점포:</b> ${item.store || ""}</p>
+        <p><b>품목:</b> ${item.products || ""}</p>
+        <p><b>일자:</b> ${formatDateOnly(item.date)}</p>
+        <p><b>사유:</b> ${item.reason || ""}</p>
+        <p><b>상태:</b> <span class="${statusClass(item.status)}">${displayStatus(item.status)}</span></p>
+      </div>
+    `).join("")
+    : `<p>조회된 내역이 없습니다.</p>`;
+
   html += `</div><div class="card"><h3>내 리드 전용 요청</h3>`;
-  html += vocRequests.length ? vocRequests.slice().reverse().map(item => `<div class="card"><p><b>리드:</b> ${item.lead || ""}</p><p><b>교육 대상자:</b> ${item.members || ""}</p><p><b>품목:</b> ${item.products || ""}</p><p><b>교육 기간:</b> ${formatDateOnly(item.start)} ~ ${formatDateOnly(item.end)}</p><p><b>상태:</b> <span class="${statusClass(item.status)}">${displayStatus(item.status)}</span></p></div>`).join("") : `<p>조회된 내역이 없습니다.</p>`;
+
+  html += vocRequests.length
+    ? vocRequests.slice().reverse().map(item => `
+      <div class="card">
+        <p><b>리드:</b> ${item.lead || ""}</p>
+        <p><b>교육 대상자:</b> ${item.members || ""}</p>
+        <p><b>품목:</b> ${item.products || ""}</p>
+        <p><b>요청 구분:</b> ${item.visitType || ""}</p>
+        <p><b>방문 점포:</b> ${item.store || "-"}</p>
+        <p><b>교육 기간:</b> ${formatDateOnly(item.start)} ~ ${formatDateOnly(item.end)}</p>
+        <p><b>상태:</b> <span class="${statusClass(item.status)}">${displayStatus(item.status)}</span></p>
+      </div>
+    `).join("")
+    : `<p>조회된 내역이 없습니다.</p>`;
+
   html += `</div>`;
   box.innerHTML = html;
 }
 
 function openSchedule(leadName) {
   currentScheduleLead = leadName;
+  currentScheduleList = [];
+
   document.getElementById("scheduleTitle").innerText = leadName + " 리드 일정";
   document.getElementById("scheduleModal").style.display = "block";
   document.getElementById("scheduleForm").style.display = "none";
   document.getElementById("scheduleFormMsg").innerText = "";
   document.getElementById("scheduleList").innerHTML = "<p>일정 불러오는 중...</p>";
+
+  resetScheduleForm();
   loadJsonp("schedule", "handleSchedule", { lead: leadName });
 }
 
 function handleSchedule(data) {
   const list = data.list || [];
+  currentScheduleList = list;
+
   const box = document.getElementById("scheduleList");
 
   if (list.length === 0) {
@@ -550,17 +661,25 @@ function handleSchedule(data) {
     return;
   }
 
-  list.sort((a, b) => String(a.start || a.date).localeCompare(String(b.start || b.date)));
+  list.sort((a, b) => String(a.start || "").localeCompare(String(b.start || "")));
 
   box.innerHTML = list.map(item => {
-    const start = item.start || item.date || "";
-    const end = item.end || start;
-    const store = item.store ? `<p><b>점포:</b> ${item.store}</p>` : `<p><b>점포:</b> -</p>`;
+    const start = formatDateOnly(item.start);
+    const end = formatDateOnly(item.end || item.start);
+    const storeText = item.store ? item.store : "-";
+    const payload = encodeURIComponent(JSON.stringify(item));
 
     return `
       <div class="schedule-item">
         <p><span class="badge">${item.type || "기타"}</span> ${start} ~ ${end}</p>
-        ${store}
+        <p><b>점포:</b> ${storeText}</p>
+        ${item.memo ? `<p><b>내용:</b> ${item.memo}</p>` : ""}
+        ${item.editable ? `
+          <div class="btn-row">
+            <button class="mini-btn" onclick="editSchedule('${payload}')">수정</button>
+            <button class="mini-btn" style="background:#dc2626;" onclick="deleteSchedule('${payload}')">삭제</button>
+          </div>
+        ` : ""}
       </div>
     `;
   }).join("");
@@ -573,9 +692,43 @@ function closeSchedule() {
 function toggleScheduleForm() {
   const form = document.getElementById("scheduleForm");
   form.style.display = form.style.display === "none" ? "block" : "none";
+  resetScheduleForm();
+}
+
+function resetScheduleForm() {
+  document.getElementById("scheduleForm").removeAttribute("data-edit-row");
+  document.getElementById("schedulePw").value = "";
+  document.getElementById("scheduleType").value = "휴무";
+  document.getElementById("scheduleStore").value = "";
+  document.getElementById("scheduleMemo").value = "";
+  document.getElementById("scheduleFormMsg").innerText = "";
+
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById("scheduleStartDate").value = today;
+  document.getElementById("scheduleEndDate").value = today;
+
+  const btn = document.querySelector("#scheduleForm .submit-btn");
+  if (btn) btn.innerText = "일정 등록";
+
+  handleScheduleTypeChange();
+}
+
+function handleScheduleTypeChange() {
+  const type = document.getElementById("scheduleType").value;
+  const store = document.getElementById("scheduleStore");
+
+  if (type === "휴무") {
+    store.value = "";
+    store.disabled = true;
+  } else {
+    store.disabled = false;
+  }
 }
 
 function registerLeadSchedule() {
+  const form = document.getElementById("scheduleForm");
+  const editRow = form.getAttribute("data-edit-row");
+
   const password = document.getElementById("schedulePw").value.trim();
   const type = document.getElementById("scheduleType").value;
   const startDate = document.getElementById("scheduleStartDate").value;
@@ -588,10 +741,16 @@ function registerLeadSchedule() {
     return;
   }
 
-  document.getElementById("scheduleFormMsg").innerText = "등록 중...";
+  if (type !== "휴무" && !store) {
+    document.getElementById("scheduleFormMsg").innerText = "휴무가 아닌 경우 점포를 선택해주세요.";
+    return;
+  }
 
-  postToScript({
-    action: "addSchedule",
+  document.getElementById("scheduleFormMsg").innerText = editRow ? "수정 중..." : "등록 중...";
+
+  const payload = {
+    action: editRow ? "updateSchedule" : "addSchedule",
+    row: editRow,
     lead: currentScheduleLead,
     password,
     type,
@@ -599,27 +758,73 @@ function registerLeadSchedule() {
     endDate,
     store,
     memo
-  }).then(() => {
-    document.getElementById("scheduleFormMsg").innerText = "일정 등록 완료 👍";
-    document.getElementById("schedulePw").value = "";
-    document.getElementById("scheduleMemo").value = "";
-    setTimeout(() => openSchedule(currentScheduleLead), 600);
+  };
+
+  postToScript(payload).then(() => {
+    document.getElementById("scheduleFormMsg").innerText = editRow ? "일정 수정 완료 👍" : "일정 등록 완료 👍";
+    setTimeout(() => openSchedule(currentScheduleLead), 700);
   }).catch(() => {
-    document.getElementById("scheduleFormMsg").innerText = "등록 실패 ❌";
+    document.getElementById("scheduleFormMsg").innerText = "처리 실패 ❌";
+  });
+}
+
+function editSchedule(encodedItem) {
+  const item = JSON.parse(decodeURIComponent(encodedItem));
+
+  document.getElementById("scheduleForm").style.display = "block";
+  document.getElementById("scheduleForm").setAttribute("data-edit-row", item.row);
+
+  document.getElementById("scheduleType").value = item.type || "기타";
+  document.getElementById("scheduleStartDate").value = formatDateOnly(item.start);
+  document.getElementById("scheduleEndDate").value = formatDateOnly(item.end || item.start);
+  document.getElementById("scheduleStore").value = removeStoreSuffix(item.store || "");
+  document.getElementById("scheduleMemo").value = item.memo || "";
+  document.getElementById("schedulePw").value = "";
+
+  const btn = document.querySelector("#scheduleForm .submit-btn");
+  if (btn) btn.innerText = "일정 수정";
+
+  handleScheduleTypeChange();
+  document.getElementById("scheduleFormMsg").innerText = "비밀번호 입력 후 수정 버튼을 눌러주세요.";
+}
+
+function deleteSchedule(encodedItem) {
+  const item = JSON.parse(decodeURIComponent(encodedItem));
+  const password = prompt("리드 개인 비밀번호를 입력하면 삭제됩니다.");
+
+  if (!password) return;
+  if (!confirm("이 일정을 삭제할까요?")) return;
+
+  postToScript({
+    action: "deleteSchedule",
+    row: item.row,
+    lead: currentScheduleLead,
+    password: password
+  }).then(() => {
+    openSchedule(currentScheduleLead);
   });
 }
 
 function formatDateOnly(value) {
   if (!value) return "";
+
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
   const date = new Date(value);
   if (isNaN(date.getTime())) return value;
+
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function removeStoreSuffix(value) {
+  if (!value) return "";
+  return String(value).replace(/점$/, "");
 }
 
 function statusClass(status) {
   if (status === "승인") return "status-ok";
   if (status === "반려") return "status-no";
+  if (status === "취소") return "status-no";
   return "status-wait";
 }
 
@@ -628,7 +833,7 @@ function displayStatus(status) {
 }
 
 function isFinalStatus(value) {
-  return value === "승인" || value === "반려";
+  return value === "승인" || value === "반려" || value === "취소";
 }
 
 function isPendingItem(item) {
